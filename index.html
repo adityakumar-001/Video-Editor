@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MY VIDEO EDITOR</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>🎬 MY VIDEO EDITOR</h1>
+  <div class="top-actions">
+    <span id="projectInfo">No project • localhost</span>
+  </div>
+</header>
+
+<!-- TOP TOOLBAR: Play / Cut / Trim / Undo / Export -->
+<nav class="toolbar" id="topToolbar">
+  <button id="btnPlay" class="ctrl primary" title="Play / Pause (Space)">▶ Play</button>
+  <button id="btnPrevFrame" class="ctrl" title="1 frame back">⏮ Frame-</button>
+  <button id="btnNextFrame" class="ctrl" title="1 frame forward">Frame+ ⏭</button>
+  <span class="sep"></span>
+  <button id="btnCut" class="ctrl" title="Split at playhead (S)">✂ Cut</button>
+  <button id="btnTrim" class="ctrl" title="Apply trim from Settings">⏱ Trim</button>
+  <button id="btnUndo" class="ctrl" title="Undo (Ctrl+Z)">↩ Undo</button>
+  <span class="sep"></span>
+  <button id="btnExport" class="ctrl export" title="Export video">📤 Export</button>
+  <span class="sep"></span>
+  <button id="btnFilterBar" class="ctrl fx-btn" title="Filters (selected clip)">🎨 Filter</button>
+  <button id="btnEffectBar" class="ctrl fx-btn" title="Video effects (selected clip)">✨ Effect</button>
+  <button id="btnStickerBar" class="ctrl fx-btn" title="Add stickers">🌟 Sticker</button>
+  <button id="btnEmojiBar" class="ctrl fx-btn" title="Add emojis">😀 Emoji</button>
+  <button id="btnTransBar" class="ctrl fx-btn" title="Clip transitions">🔀 Transition</button>
+  <button id="btnJointBar" class="ctrl fx-btn" title="Animations between clips">🔗 Between</button>
+  <span class="sep"></span>
+  <button id="btnSettingsBar" class="ctrl fx-btn" title="Show / hide settings panel">⚙️ Settings</button>
+  <span id="toolbarTime">00:00.0 / 00:00.0</span>
+</nav>
+
+<!-- FX DRAWER: Filter / Effect / Sticker / Emoji / Transition / Between quick panel -->
+<section id="fxDrawer" class="fx-drawer hidden">
+  <div class="fx-head">
+    <span id="fxTitle">🎨 Filters</span>
+    <button id="btnFxClose" title="Close panel">✕</button>
+  </div>
+  <div id="fxBody" class="fx-body"></div>
+</section>
+
+<main class="layout">
+  <!-- LEFT: IMPORT -->
+  <aside class="panel import-panel">
+    <h2>IMPORT</h2>
+    <button class="imp-btn" id="btnImportVideo">📁 Video</button>
+    <input type="file" id="fileVideo" accept="video/*" multiple hidden>
+    <button class="imp-btn" id="btnImportImage">🖼 Image</button>
+    <input type="file" id="fileImage" accept="image/*" multiple hidden>
+    <button class="imp-btn" id="btnImportAudio">🎵 Audio</button>
+    <input type="file" id="fileAudio" accept="audio/*" multiple hidden>
+    <button class="imp-btn" id="btnAddText">📝 Text</button>
+
+    <h3>Clips <span id="clipCount">0</span></h3>
+    <div id="clipList" class="clip-list">
+      <p class="hint">Import videos to start.<br>Drag & drop supported.</p>
+    </div>
+
+    <h3>Overlays</h3>
+    <div id="overlayList" class="clip-list"></div>
+  </aside>
+
+  <!-- CENTER: SINGLE-FRAME PREVIEW (locked single) -->
+  <section class="panel preview-panel">
+    <h2>FRAME PREVIEW <span class="single-badge" title="Single frame mode locked">1× SINGLE</span> <span id="timeDisplay">00:00.0 / 00:00.0</span></h2>
+    <!-- Preview + layout controls (adjust preview window, free space for side panels) -->
+    <div class="preview-layout-row" title="Adjust preview window and side panels">
+      <span class="pl-label">Preview:</span>
+      <button id="btnAlignLeft" title="Align preview to left">⬅ Left</button>
+      <button id="btnAlignCenter" class="primary" title="Center preview">● Center</button>
+      <button id="btnAlignRight" title="Align preview to right">Right ➡</button>
+      <label title="Shift preview from the left">Left <input type="range" id="previewOffset" min="0" max="30" value="0" step="1"> <span id="previewOffsetVal">0%</span></label>
+      <label title="Preview width">Width <input type="range" id="previewWidth" min="40" max="100" value="100" step="1"> <span id="previewWidthVal">100%</span></label>
+      <span class="pl-label">Layout:</span>
+      <button id="btnToggleLeft" class="primary" title="Show / hide left IMPORT panel">◀ Import</button>
+      <button id="btnToggleRight" class="primary" title="Show / hide right SETTINGS panel">Settings ▶</button>
+      <button id="btnTheater" title="Wide mode: hide both side panels">⛶ Wide</button>
+      <label title="Left panel width">Left panel <input type="range" id="leftWidth" min="150" max="380" value="230" step="10"> <span id="leftWidthVal">230px</span></label>
+      <label title="Right panel width">Right panel <input type="range" id="rightWidth" min="180" max="420" value="280" step="10"> <span id="rightWidthVal">280px</span></label>
+    </div>
+    <!-- single unified frame ONLY -->
+    <div class="canvas-wrap single-frame locked-single" id="canvasWrap">
+      <canvas id="previewCanvas" width="1280" height="720"></canvas>
+      <div id="textLayer"></div>
+      <div id="dropHint">📥 Drop video / image / audio here<br><small>or use IMPORT buttons</small></div>
+    </div>
+    <div class="frame-step-row">
+      <button id="btnFrameBack" title="Previous frame">⏮</button>
+      <span id="frameInfo">Frame 0</span>
+      <button id="btnFrameFwd" title="Next frame">⏭</button>
+      <span class="frame-hint">30fps step • Space = Play/Pause</span>
+    </div>
+    <input type="range" id="seekBar" min="0" max="1000" value="0" step="1">
+    <div class="preview-row">
+      <span id="clipLabel">No clip selected</span>
+      <span id="exportStatus"></span>
+    </div>
+    <!-- hidden media elements -->
+    <video id="hiddenVideo" muted playsinline crossorigin="anonymous"></video>
+    <audio id="bgAudio" loop></audio>
+  </section>
+
+  <!-- RIGHT: SETTINGS -->
+  <aside class="panel settings-panel">
+    <h2>SETTINGS</h2>
+
+    <div class="set-group">
+      <label>🎨 Filter</label>
+      <select id="filterSelect">
+        <option value="none">None</option>
+        <option value="grayscale(100%)">Grayscale</option>
+        <option value="sepia(100%)">Sepia</option>
+        <option value="invert(100%)">Invert</option>
+        <option value="saturate(200%)">Vivid</option>
+        <option value="contrast(150%) saturate(130%)">Cinematic</option>
+        <option value="blur(2px)">Soft Blur</option>
+        <option value="sepia(60%) contrast(120%)">Vintage</option>
+        <option value="contrast(130%) brightness(110%) saturate(160%)">Pop</option>
+        <option value="hue-rotate(90deg) saturate(150%)">Neon Green</option>
+        <option value="hue-rotate(180deg)">Cyberpunk</option>
+        <option value="hue-rotate(-40deg) saturate(170%)">Sunset Warm</option>
+        <option value="brightness(85%) contrast(130%) saturate(40%)">Noir / Cold</option>
+        <option value="grayscale(60%) contrast(140%) brightness(105%)">B&W Film</option>
+        <option value="sepia(40%) saturate(160%) hue-rotate(-15deg)">Golden Hour</option>
+        <option value="saturate(30%) brightness(110%)">Faded / Pastel</option>
+        <option value="contrast(120%) saturate(0%) brightness(120%)">Silver</option>
+        <option value="invert(90%) hue-rotate(180deg)">X-Ray</option>
+        <option value="blur(1px) brightness(110%) saturate(140%)">Dreamy Glow</option>
+        <option value="contrast(160%) saturate(200%) hue-rotate(10deg)">Punchy</option>
+      </select>
+      <label>🎚 Filter Strength <span id="filterStrVal">100%</span></label>
+      <input type="range" id="filterStrength" min="0" max="100" value="100" title="Filter intensity">
+    </div>
+
+    <!-- VIDEO SCALE -->
+    <div class="set-group">
+      <label>🔍 Video Scale <span id="scaleVal">100%</span></label>
+      <input type="range" id="scaleSlider" min="10" max="300" value="100">
+      <div class="fade-row">
+        <div class="mini-field"><small>X %</small><input type="number" id="posX" min="-100" max="100" step="1" value="0" title="Position X"></div>
+        <div class="mini-field"><small>Y %</small><input type="number" id="posY" min="-100" max="100" step="1" value="0" title="Position Y"></div>
+      </div>
+      <label>🖼 Fit Mode</label>
+      <select id="fitSelect">
+        <option value="cover">Cover (fill frame)</option>
+        <option value="contain">Contain (full video)</option>
+        <option value="stretch">Stretch (fill exact)</option>
+      </select>
+      <label>👻 Opacity <span id="opacityVal">100%</span></label>
+      <input type="range" id="opacitySlider" min="0" max="100" value="100">
+      <button id="btnResetScale" class="wide">↺ Reset Scale / Position</button>
+    </div>
+
+    <!-- MASK -->
+    <div class="set-group">
+      <label>🎭 Mask</label>
+      <select id="maskSelect">
+        <option value="none">None</option>
+        <option value="circle">Circle</option>
+        <option value="rect">Rectangle (center)</option>
+        <option value="left">Left Half</option>
+        <option value="right">Right Half</option>
+        <option value="top">Top Half</option>
+        <option value="bottom">Bottom Half</option>
+      </select>
+      <label>📏 Mask Size <span id="maskSizeVal">60%</span></label>
+      <input type="range" id="maskSize" min="10" max="100" value="60">
+      <div class="fade-row">
+        <div class="mini-field"><small>Mask X %</small><input type="number" id="maskX" min="0" max="100" step="1" value="50"></div>
+        <div class="mini-field"><small>Mask Y %</small><input type="number" id="maskY" min="0" max="100" step="1" value="50"></div>
+      </div>
+    </div>
+
+    <!-- KEYFRAMES -->
+    <div class="set-group">
+      <label>🔑 Keyframes <small>(animates Scale + Opacity)</small></label>
+      <div class="btn-row">
+        <button id="btnAddKeyframe" title="Add keyframe at current playhead offset">＋ Add Key</button>
+        <button id="btnClearKeyframes" title="Remove all keyframes">🗑 Clear</button>
+      </div>
+      <div id="keyframeList" class="kf-list"><p class="hint">No keyframes.<br>Place the playhead → Add Key.</p></div>
+      <small class="kf-hint">Keyframes save Scale/Opacity at a time offset inside the selected clip. They animate in both preview and export.</small>
+    </div>
+
+    <div class="set-group">
+      <label>🔊 Clip Volume <span id="volVal">100%</span></label>
+      <input type="range" id="volumeSlider" min="0" max="100" value="100">
+      <label>🎵 Music Volume <span id="musicVolVal">50%</span></label>
+      <input type="range" id="musicVolume" min="0" max="100" value="50">
+    </div>
+
+    <div class="set-group">
+      <label>🔄 Rotate</label>
+      <div class="btn-row">
+        <button data-rot="0">0°</button>
+        <button data-rot="90">90°</button>
+        <button data-rot="180">180°</button>
+        <button data-rot="270">270°</button>
+      </div>
+    </div>
+
+    <div class="set-group">
+      <label>📐 Canvas Size</label>
+      <select id="canvasSize">
+        <option value="1280x720">1280×720 (HD)</option>
+        <option value="1920x1080">1920×1080 (FHD)</option>
+        <option value="854x480">854×480 (SD)</option>
+        <option value="720x1280">720×1280 (Reel)</option>
+        <option value="1080x1080">1080×1080 (Square)</option>
+      </select>
+      <label>⚡ Speed <span id="speedVal">1x</span></label>
+      <input type="range" id="speedSlider" min="25" max="200" value="100">
+    </div>
+
+    <div class="set-group">
+      <label>☀ Brightness <span id="briVal">100%</span></label>
+      <input type="range" id="brightness" min="0" max="200" value="100">
+      <label>◐ Contrast <span id="conVal">100%</span></label>
+      <input type="range" id="contrast" min="0" max="200" value="100">
+    </div>
+
+    <div class="set-group">
+      <label>🌅 Fade in/out (sec)</label>
+      <div class="fade-row">
+        <input type="number" id="fadeIn" min="0" max="10" step="0.5" value="0" title="Fade in">
+        <input type="number" id="fadeOut" min="0" max="10" step="0.5" value="0" title="Fade out">
+      </div>
+    </div>
+
+    <!-- EFFECT + TRANSITIONS (selected clip + between clips) -->
+    <div class="set-group">
+      <label>✨ Effect (selected clip)</label>
+      <select id="effectSelect">
+        <option value="none">None</option>
+      </select>
+      <label>🔀 Transition IN (selected clip start) <small id="transCount">styles</small></label>
+      <select id="transSelect">
+        <option value="none">None</option>
+      </select>
+      <label>⏳ Transition IN Duration (sec)</label>
+      <input type="number" id="transDur" min="0.1" max="3" step="0.1" value="0.5">
+      <label>🔗 Transition OUT — to next clip <small>(between-clips animation)</small></label>
+      <select id="transOutSelect">
+        <option value="none">None</option>
+      </select>
+      <label>⏳ Transition OUT Duration (sec)</label>
+      <input type="number" id="transOutDur" min="0.1" max="3" step="0.1" value="0.5">
+      <label>🔗 Between Clips <small id="jointCount"></small></label>
+      <div id="jointList" class="kf-list"><p class="hint">Add at least 2 clips<br>to set between-animations.</p></div>
+      <small class="kf-hint">Tip: IN plays at the start of the selected clip, OUT plays at its end into the next clip. Together they form the between-clips animation.</small>
+    </div>
+
+    <div class="set-group">
+      <label>✂ Trim Selected Clip (sec)</label>
+      <div class="fade-row">
+        <input type="number" id="trimStart" min="0" step="0.1" value="0" title="Start">
+        <input type="number" id="trimEnd" min="0" step="0.1" value="0" title="End">
+      </div>
+      <button id="btnApplyTrim" class="wide">⏱ Apply Trim</button>
+    </div>
+
+    <div class="set-group" id="textEditor" style="display:none">
+      <label>📝 Text Overlay <button id="btnTextEditFocus" class="pencil-btn" title="Edit text">✏️ Edit</button></label>
+      <div class="text-edit-row">
+        <input type="text" id="textContent" placeholder="Your text">
+        <button id="btnTextEditPencil" class="pencil-btn" title="Edit selected text">✏️</button>
+      </div>
+      <label>🔠 Size <span id="textSizeVal">48px</span></label>
+      <input type="range" id="textSizeSlider" min="12" max="200" value="48" title="Text size">
+      <div class="btn-row">
+        <button id="btnTextMinus" title="Decrease size">A−</button>
+        <button id="btnTextPlus" title="Increase size">A＋</button>
+      </div>
+      <div class="fade-row">
+        <input type="color" id="textColor" value="#ffffff" title="Text color">
+        <input type="number" id="textSize" value="48" min="12" max="200" title="Size px">
+      </div>
+      <label>🔤 Font</label>
+      <select id="textFont">
+        <option value="Arial">Arial</option>
+        <option value="Impact">Impact (bold poster)</option>
+        <option value="'Arial Black'">Arial Black</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Georgia">Georgia</option>
+        <option value="'Courier New'">Courier New</option>
+        <option value="'Comic Sans MS'">Comic Sans</option>
+        <option value="sans-serif">Sans (default)</option>
+      </select>
+      <div class="btn-row">
+        <button id="btnTextBold" title="Bold on/off">B Bold</button>
+        <button id="btnTextItalic" title="Italic on/off">I Italic</button>
+      </div>
+      <label>🎨 Background</label>
+      <div class="fade-row">
+        <input type="color" id="textBg" value="#ff0000" title="Background color">
+        <button id="btnTextBgClear" title="Transparent background">No BG</button>
+      </div>
+      <label>📍 Position</label>
+      <div class="fade-row">
+        <div class="mini-field"><small>X %</small><input type="range" id="textX" min="0" max="90" value="30"></div>
+        <div class="mini-field"><small>Y %</small><input type="range" id="textY" min="0" max="90" value="40"></div>
+      </div>
+      <label>🎞 Animation</label>
+      <select id="textAnim">
+        <option value="none">None</option>
+      </select>
+      <div class="fade-row">
+        <input type="number" id="textStart" value="0" step="0.5" min="0" title="Start sec">
+        <input type="number" id="textEnd" value="5" step="0.5" min="0" title="End sec">
+      </div>
+      <label>⏳ Duration (sec)</label>
+      <input type="number" id="textDur" value="5" step="0.5" min="0.5" title="Duration in seconds">
+      <div class="btn-row">
+        <button id="btnTextPos">↔ Move: drag on preview</button>
+      </div>
+      <small class="kf-hint">Tip: drag on preview = move • corner ◢ handle = resize • A−/A＋ for size • ✏️ to edit text • animation plays in preview + export</small>
+    </div>
+
+    <div class="set-group" id="imageEditor" style="display:none">
+      <label>🖼 Image Overlay — Resize + Animation</label>
+      <label>📏 Size <span id="imgSizeVal">25%</span></label>
+      <input type="range" id="imgSizeSlider" min="5" max="100" value="25" title="Image width %">
+      <div class="btn-row">
+        <button id="btnImgMinus" title="Smaller">−</button>
+        <button id="btnImgPlus" title="Bigger">＋</button>
+      </div>
+      <label>👻 Opacity <span id="imgOpVal">100%</span></label>
+      <input type="range" id="imgOpacity" min="10" max="100" value="100">
+      <label>🎞 Animation</label>
+      <select id="imgAnim">
+        <option value="none">None</option>
+      </select>
+      <div class="fade-row">
+        <input type="number" id="imgStart" value="0" step="0.5" min="0" title="Start sec">
+        <input type="number" id="imgEnd" value="5" step="0.5" min="0" title="End sec">
+      </div>
+      <label>⏳ Duration (sec)</label>
+      <input type="number" id="imgDur" value="5" step="0.5" min="0.5" title="Duration in seconds">
+      <small class="kf-hint">Tip: drag on preview = move • corner ◢ = resize • drag timeline edges to adjust duration</small>
+    </div>
+  </aside>
+</main>
+
+<!-- TIMELINE with ZOOM + PLAYHEAD + MULTI-CLIP ADD -->
+<section class="timeline">
+  <div class="timeline-head">
+    <h2>TIMELINE <small id="totalDur">total 00:00</small></h2>
+    <div class="zoom-ctrls">
+      <button id="btnZoomOut" title="Zoom out timeline (-)">➖</button>
+      <input type="range" id="zoomSlider" min="20" max="400" value="120" title="Timeline zoom">
+      <button id="btnZoomIn" title="Zoom in timeline (+)">➕</button>
+      <span id="zoomVal" title="Pixels per second">120px/s</span>
+      <button id="btnZoomFit" title="Fit whole timeline on screen">⛶ Fit</button>
+      <span id="timelineTime" title="Exact playhead time">00:00.0</span>
+    </div>
+  </div>
+  <div class="track-label">VIDEO <button id="btnSplitTrack" title="Split at playhead">✂</button> <button id="btnAddVideoTl" title="Add video clip(s) to timeline">＋ Video</button></div>
+  <div id="timelineScroll">
+    <div id="ruler" class="ruler"></div>
+    <div class="track" id="videoTrack"></div>
+    <div class="track-label">AUDIO <button id="btnAddAudioTl" title="Add audio clip(s) at playhead — multiple supported">＋ Audio</button> <small class="multi-tag">multi-clip ✓</small></div>
+    <div class="track free-track audio-track" id="audioTrack"><div class="audio-hint">No audio — add multiple clips with ＋ Audio</div></div>
+    <div class="track-label">TEXT <button id="btnAddTextTl" title="Add text at playhead — multiple supported">＋ Text</button> <small class="multi-tag">multi-clip ✓</small></div>
+    <div class="track free-track text-track" id="textTrack"></div>
+    <div class="track-label">IMAGE <button id="btnAddImageTl" title="Add image(s) at playhead — multiple supported">＋ Image</button> <small class="multi-tag">multi-clip ✓</small></div>
+    <div class="track free-track image-track" id="imageTrack"></div>
+    <!-- exact-time playhead line across all tracks -->
+    <div id="playheadLine"><div class="ph-cap"></div></div>
+  </div>
+  <small class="timeline-hint">Tip: click the timeline to seek • ➖/➕ to zoom • ＋ Video/Audio/Text/Image adds multiple clips • click Audio/Text/Image blocks to edit • drag block edges ◀ ▶ to adjust duration • red line = exact playhead time</small>
+</section>
+
+<!-- EXPORT MODAL -->
+<div id="exportModal" class="modal hidden">
+  <div class="modal-box">
+    <h2>📤 Export Video</h2>
+    <label>Resolution</label>
+    <select id="expRes">
+      <option value="1280x720">1280×720 HD</option>
+      <option value="1920x1080">1920×1080 Full HD</option>
+      <option value="854x480">854×480 SD</option>
+      <option value="640x480">640×480</option>
+      <option value="720x1280">720×1280 Shorts / Reel</option>
+      <option value="1080x1920">1080×1920 Shorts HD</option>
+      <option value="1080x1080">1080×1080 Square</option>
+      <option value="original">Match canvas size (auto)</option>
+    </select>
+    <label>FPS</label>
+    <select id="expFps">
+      <option value="24">24 fps</option>
+      <option value="30" selected>30 fps</option>
+      <option value="60">60 fps</option>
+    </select>
+    <label>Format</label>
+    <select id="expFormat">
+      <option value="mp4">MP4 (H.264 if supported)</option>
+      <option value="webm">WebM</option>
+    </select>
+    <div class="progress"><div id="expBar"></div></div>
+    <p id="expText">Ready to export.</p>
+    <small class="kf-hint">Tip: export follows canvas size (e.g. Shorts 720×1280) unless you pick a resolution manually.</small>
+    <div class="btn-row">
+      <button id="btnStartExport" class="primary">Start Export</button>
+      <button id="btnCancelExport">Cancel</button>
+      <button id="btnCloseExport">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
